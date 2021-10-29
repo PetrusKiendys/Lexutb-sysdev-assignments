@@ -1,0 +1,11 @@
+
+# temp files
+*~
+.DS_Store
+
+# build artifacts
+## C#
+*.exe
+**/bin/**
+**/obj/**
+
