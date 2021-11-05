@@ -2,7 +2,7 @@
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace assignment
+namespace checkpoint1
 {
     class Program
     {
@@ -75,7 +75,7 @@ namespace assignment
                 }
 
                 // EXTRA: regex match input
-                //        note: skips some validations, so it does not completely conform to some requirements of this exercise!
+                //        note: skips some validations, so it does not completely conform to the requirements of this exercise!
                 if (regexMatchInput) {
                     string pattern = @"^[a-zA-Z]+\-[0-9]+$";
                     bool match = Regex.IsMatch(input, pattern);
