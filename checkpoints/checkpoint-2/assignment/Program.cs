@@ -48,7 +48,7 @@ namespace checkpoint2 {
                     //           and get a different return datatype depending on what we want to assign (string or double)?
                     //           Instead of using two differently named methods.
                     //           see also: https://stackoverflow.com/questions/20705643/method-overloading-with-different-return-type
-                    //                     https://stackoverflow.com/questions/45011889/overloading-function-with-different-return-type/45011931
+                    //                     https://stackoverflow.com/questions/45011889/overloading-function-with-different-return-type/
                     category = ConvertInputToString("Add product category: ");
                     name = ConvertInputToString("Add product name: ");
                     price = ConvertInputToDouble("Add product price: ");
