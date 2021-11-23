@@ -1,7 +1,7 @@
 using Xunit;
 using System.Linq;
 
-namespace miniproject1;
+namespace miniproject1 {
 public class AssetListTests {
     // EXTRA: add tests for private methods invoked by Print(), eg.:
     //          - FormatKey   (private)
@@ -49,4 +49,5 @@ public class AssetListTests {
 
         Assert.False(actual);
     }
+}
 }

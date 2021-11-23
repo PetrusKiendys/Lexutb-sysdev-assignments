@@ -1,6 +1,6 @@
 using System;
 
-namespace miniproject1;
+namespace miniproject1 {
 static class TestUtils {
     public enum AssetType { DesktopComputer, LaptopComputer, Smartphone }
     
@@ -41,4 +41,5 @@ static class TestUtils {
                                   batteryType, batteryCapacity,
                                   webcam, trackpad);
     }
+}
 }
