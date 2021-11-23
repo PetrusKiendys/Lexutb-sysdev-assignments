@@ -1,13 +1,12 @@
-using System.Linq;
 using Xunit;
+using System.Linq;
 
 namespace miniproject1;
 public class AssetListTests {
-    // EXTRA: add tests for:
-    //        - Print
-    //          - FormatColor (private)
+    // EXTRA: add tests for private methods invoked by Print(), eg.:
     //          - FormatKey   (private)
     //          - FormatValue (private)
+    //          - ...
 
     [Fact]
     public void Add_SingleAsset_CountOne() {

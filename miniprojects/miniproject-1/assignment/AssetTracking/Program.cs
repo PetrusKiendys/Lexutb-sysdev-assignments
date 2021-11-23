@@ -1,14 +1,16 @@
-﻿// TODO:
-//     - implement all requirements of miniproject 1
-//       - make sure sorting works as intended: location -> className -> purchaseDate
-using System;
+﻿using System;
+using System.Reflection;
+using System.Linq;
+using System.ComponentModel;
 
 namespace miniproject1 {
     public static class Program {
-        // BOOKMARK
-        // TODO: complete this method..
         /** run the main application **/
         private static void runProgram(AssetList assetList) {
+            var assetTypes = (from type in Assembly.GetAssembly(typeof(Asset)).GetTypes()
+                              where type.IsClass && !type.IsAbstract && type.IsSubclassOf(typeof(Asset))
+                              orderby type.Name ascending
+                              select type).ToArray();
             while(true) {
                 Console.WriteLine("Press Enter to add a new asset or \'q\' to exit");
                 ConsoleKeyInfo keyInfo = Console.ReadKey(true);
@@ -17,31 +19,25 @@ namespace miniproject1 {
                 else if (keyInfo.Key == ConsoleKey.Enter) {
                     Console.WriteLine("\nPlease enter asset details.");
 
-                    // TODO: Asset creation here..
-                    // >>> TODO: Rewrite Asset creation flow (probably in InputManager)
-                    //     - Asset creation flow:
-                    //         1. display asset selector
-                    //             - (eg. [ AssetType(non-abstract) | int | enum ] <-- InputManager.AssetTypeSelector())
-                    //               - present int selection options depending on the selectable types
-                    //               - return int or type, which following statements can use to create new Asset of the given type
-                    //               - should be similar to: InputManager.ConvertInputToLocation(string)
-                    //         2. ...
-                    //     - create new asset type based on selection
-                    //       - probably need to add empty constructors for all instantiable assets
-                    //     - iterate over asset properties and invoke corresponding ConvertInputTo... method based on that
-                    //       - make a map (InputFuncMap) of properties-to-function:
-                    //         https://stackoverflow.com/questions/22599425/how-to-map-strings-to-methods-with-a-dictionary
+                    // select asset type
+                    string selectionPrompt = InputManager.AssetTypePrompt(assetTypes);
+                    Type selectedAssetType = InputManager.AssetTypeSelector(assetTypes, selectionPrompt);
 
-                    // REMOVEME: this is just a mock flow for the time being..
-                    var successfullyAddedAsset = AddNewAsset(assetList);
+                    // create new asset
+                    Asset asset = (Asset)Activator.CreateInstance(selectedAssetType);
+
+                    // populate asset with data
+                    populateWithInput(asset);
+                    populateDynamically(asset);
+
+                    // add asset to list
+                    assetList.Add(asset);
+
+                    // print success message
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("Successfully registered asset!");
+                    Console.ResetColor();
                     Console.WriteLine();
-                    if (successfullyAddedAsset) {
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine("Successfully registered asset!");
-                        Console.ResetColor();
-                    }
-
-                    // ...?
                 }
             }
 
@@ -51,39 +47,67 @@ namespace miniproject1 {
             }
         }
 
-        // REMOVEME: this is just a mock function for the time being...
-        private static bool AddNewAsset(AssetList assetList) {
-            try {
-                // collect user input
-                var name = InputManager.ConvertInputToString("Asset name: ");
-                DateTime purchaseDate = InputManager.ConvertInputToDateTime("Date of purchase: ");
-                Asset.Location location = InputManager.ConvertInputToLocation("Location of asset (1) USA, (2) Sweden, (3) Japan: ");
-                double price = InputManager.ConvertInputToDouble("Price (in USD): ");
-                string brand = InputManager.ConvertInputToString("Brand: ");
-                int weight = InputManager.ConvertInputToInt("Weight (g): ");
-                string cpu = InputManager.ConvertInputToString("CPU (name): ");
-                string gpu = InputManager.ConvertInputToString("GPU (name): ");
-                string ram = InputManager.ConvertInputToString("RAM (name): ");
-                int ramSize = InputManager.ConvertInputToInt("RAM size (GB): ");
-                string storage = InputManager.ConvertInputToString("Storage (name): ");
-                int storageSize = InputManager.ConvertInputToInt("Storage size (GB): ");
-                string displayType = InputManager.ConvertInputToString("Display type: ");
-                double displaySize = InputManager.ConvertInputToDouble("Display size (inches): ");
-                string batteryType = InputManager.ConvertInputToString("Battery type: ");
-                int batteryCapacity = InputManager.ConvertInputToInt("Battery capacity (mAh): ");
-                bool webcam = InputManager.ConvertInputToBool("Has webcam [Y/n]? ");
-                bool trackpad = InputManager.ConvertInputToBool("Has trackpad [Y/n]? ");
+        private static void populateDynamically(Asset asset) {
+            asset.price = asset.getLocalPrice(asset.price, asset.location);
+            asset.currency = (Asset.Currency)asset.location;
+            asset.prettyPrice = $"{asset.price} {asset.currency}";
+        }
 
-                // add new asset to list
-                LaptopComputer asset = new LaptopComputer(name, purchaseDate, price, location, brand, weight, cpu, gpu, ram, ramSize, storage, storageSize, displayType, displaySize, batteryType, batteryCapacity, webcam, trackpad);
-                assetList.Add(asset);
-            } catch (Exception e) {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"An error has occurred during asset registration: {e.Message}");
-                Console.ResetColor();
-                return false;
+        // EXTRA: fuzzy string match when sorting, so that similarly named properties are matched with a single string,
+        //        eg. "ram" would match both "ram" and "ramSize"
+        //        https://en.wikipedia.org/wiki/Approximate_string_matching
+        //        https://docs.microsoft.com/en-us/dotnet/api/system.componentmodel.propertydescriptorcollection.sort?view=net-6.0
+        //          https://docs.microsoft.com/en-us/dotnet/api/system.collections.icomparer?view=net-6.0
+        private static void populateWithInput(Asset asset) {
+            foreach (PropertyDescriptor descriptor in TypeDescriptor.GetProperties(asset)       // set input order by sorting PropertyDescriptorCollection:
+            .Sort(new string[]{ "name", "purchaseDate", "price", "location",                    //   by Asset props, then
+                                "brand", "weight",                                              //   by ElectronicDevice props, then
+                                "cpu", "gpu", "ram", "ramSize", "storage", "storageSize",       //   by Computer props, then
+                                "displayType", "displaySize", "batteryType", "batteryCapacity", //   by PortableComputer props, then
+                                "platform", "frontCameraResolution", "backCameraResolution",    //   by Smartphone props, then
+                                "psu", "trackpad", "webcam" })) {                               //   by DesktopComputer and LaptopComputer props
+                Type type = descriptor.PropertyType;
+                string key = descriptor.Name;
+                dynamic value = type.FullName switch {
+                    "System.String" => key switch {
+                        "name" => InputManager.ConvertInputToString("Asset name: "),
+                        "brand" => InputManager.ConvertInputToString("Brand: "),
+                        "prettyPrice" => default,
+                        "cpu" => InputManager.ConvertInputToString("CPU (name): "),
+                        "gpu" => InputManager.ConvertInputToString("GPU (name): "),
+                        "ram" => InputManager.ConvertInputToString("RAM (name): "),
+                        "psu" => InputManager.ConvertInputToString("PSU (name): "),
+                        "storage" => InputManager.ConvertInputToString("Storage (name): "),
+                        "displayType" => InputManager.ConvertInputToString("Display type: "),
+                        "batteryType" => InputManager.ConvertInputToString("Battery type: "),
+                        "platform" => InputManager.ConvertInputToString("OS platform: "),
+                        _ => throw new NotSupportedException($"{type.FullName} with key '{key}' is not supported!") },
+                    "System.Int32" => key switch {
+                        "weight" => InputManager.ConvertInputToInt("Weight (g): "),
+                        "ramSize" => InputManager.ConvertInputToInt("RAM size (GB): "),
+                        "storageSize" => InputManager.ConvertInputToInt("Storage size (GB): "),
+                        "batteryCapacity" => InputManager.ConvertInputToInt("Battery capacity (mAh): "),
+                        _ => throw new NotSupportedException($"{type.FullName} with key '{key}' is not supported!") },
+                    "System.Double" => key switch {
+                        "price" => InputManager.ConvertInputToDouble("Price (in USD): "),
+                        "displaySize" => InputManager.ConvertInputToDouble("Display size (inches): "),
+                        "frontCameraResolution" => InputManager.ConvertInputToDouble("Front camera resolution (MP): "),
+                        "backCameraResolution" => InputManager.ConvertInputToDouble("Back camera resolution (MP): "),
+                        _ => throw new NotSupportedException($"{type.FullName} with key '{key}' is not supported!") },
+                    "System.Boolean" => key switch {
+                        "webcam" => InputManager.ConvertInputToBool("Has webcam [Y/n]? "),
+                        "trackpad" => InputManager.ConvertInputToBool("Has trackpad [Y/n]? "),
+                        _ => throw new NotSupportedException($"{type.FullName} with key '{key}' is not supported!") },
+                    "System.DateTime" => key switch {
+                        "purchaseDate" => InputManager.ConvertInputToDateTime("Date of purchase: "),
+                        _ => throw new NotSupportedException($"{type.FullName} with key '{key}' is not supported!") },
+                    "miniproject1.Asset+Location" => InputManager.ConvertInputToLocation("Location of asset (1) USA, (2) Sweden, (3) Japan: "),
+                    "miniproject1.Asset+Currency" => default,
+                    null => throw new ArgumentNullException(nameof(type), "Type is null"),
+                    _ => throw new NotSupportedException($"Type is invalid or unhandled: {type.FullName}")
+                };
+                descriptor.SetValue(asset, value);
             }
-            return true;
         }
 
         /** program entry point (main method) **/
